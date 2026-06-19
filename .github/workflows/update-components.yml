@@ -119,9 +119,9 @@ jobs:
           set -euo pipefail
           docker buildx build --check .
           PAPERCLIP_FQDN=paperclip.example.com \
-          POSTGRES_PASSWORD=dummypassword \
-          BETTER_AUTH_SECRET=dummybetterauthsecret \
-          PAPERCLIP_AGENT_JWT_SECRET=dummyjwtsecret \
+          SERVICE_PASSWORD_64_POSTGRES=dummypassword \
+          SERVICE_HEX_64_BETTERAUTH=dummybetterauthsecret \
+          SERVICE_HEX_64_AGENTJWT=dummyjwtsecret \
           KIMI_API_KEY=kimi-test \
           OPENROUTER_API_KEY=openrouter-test \
           OPENAI_API_KEY=openai-test \
