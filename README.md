@@ -105,18 +105,25 @@ Common keys:
 8. Add any provider API keys you want Paperclip or pi agents to use, such as `KIMI_API_KEY`, `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY`.
 9. Deploy.
 
+> **Note:** `paperclipai onboard` is **not required**. The container generates `/paperclip/instances/default/config.json`, the agent JWT secret, and the local secrets key automatically from the environment variables. On first start it also creates a bootstrap CEO invite and prints the claim URL in the container logs.
+
 ## First run
 
-1. Open `https://${PAPERCLIP_FQDN}`.
-2. Click **Claim instance admin**.
-3. Create an account and finish onboarding.
+1. Watch the deployment logs in Coolify for the line:
+   ```
+   [docker-start] creating bootstrap CEO invite...
+   Created bootstrap CEO invite.
+   Invite URL: https://<your-domain>/invite/<token>
+   ```
+2. Open the printed invite URL.
+3. Create an account to claim instance admin and finish onboarding.
 
 ## CLI fallback
 
-If needed, exec into the running container and use the source-built CLI wrapper baked into the image:
+If the automatic bootstrap invite fails (for example, because the database was not reachable on first start), exec into the running container and run:
 
 ```bash
 docker exec -it <container-name> paperclipai auth bootstrap-ceo
 ```
 
-Then open the printed invite URL.
+Then open the printed invite URL. The config file at `/paperclip/instances/default/config.json` is generated automatically, so `paperclipai onboard` is only needed if you want to reconfigure the instance interactively.

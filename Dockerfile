@@ -96,7 +96,8 @@ RUN npm install --global --omit=dev \
   && chmod +x /usr/local/bin/paperclipai
 
 COPY --from=source /app/scripts/docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY --chown=node:node scripts/paperclip-init.mjs scripts/docker-start.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/paperclip-init.mjs /usr/local/bin/docker-start.sh
 
 ENV NODE_ENV=production \
   HOME=/paperclip \
@@ -116,4 +117,4 @@ ENV NODE_ENV=production \
 EXPOSE 3100
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]
+CMD ["/usr/local/bin/docker-start.sh"]
