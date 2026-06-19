@@ -1,0 +1,150 @@
+name: Update pinned components
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily, early UTC.
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Check upstream releases and open PR
+    runs-on: ubuntu-latest
+    env:
+      PAPERCLIP_REPO: https://github.com/paperclipai/paperclip.git
+      PAPERCLIP_GITHUB_REPO: paperclipai/paperclip
+      NODE_IMAGE_TAG: node:lts-trixie-slim
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js for npm metadata checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve latest component versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          paperclip_tag="$(gh release view --repo "$PAPERCLIP_GITHUB_REPO" --json tagName -q .tagName)"
+          paperclip_sha="$(git ls-remote "$PAPERCLIP_REPO" "refs/tags/${paperclip_tag}^{}" | awk '{print $1}')"
+          if [ -z "$paperclip_sha" ]; then
+            paperclip_sha="$(git ls-remote "$PAPERCLIP_REPO" "refs/tags/${paperclip_tag}" | awk '{print $1}')"
+          fi
+          if [ -z "$paperclip_sha" ]; then
+            echo "Could not resolve Paperclip tag ${paperclip_tag}" >&2
+            exit 1
+          fi
+
+          node_digest="$(docker buildx imagetools inspect "docker.io/library/${NODE_IMAGE_TAG}" | awk '$1 == "Digest:" {print $2; exit}')"
+          if [ -z "$node_digest" ]; then
+            echo "Could not resolve digest for ${NODE_IMAGE_TAG}" >&2
+            exit 1
+          fi
+
+          claude_code_version="$(npm view @anthropic-ai/claude-code version)"
+          openai_codex_version="$(npm view @openai/codex version)"
+          opencode_ai_version="$(npm view opencode-ai version)"
+          gemini_cli_version="$(npm view @google/gemini-cli version)"
+          pi_coding_agent_version="$(npm view @earendil-works/pi-coding-agent version)"
+
+          {
+            echo "paperclip_tag=${paperclip_tag}"
+            echo "paperclip_sha=${paperclip_sha}"
+            echo "node_digest=${node_digest}"
+            echo "claude_code_version=${claude_code_version}"
+            echo "openai_codex_version=${openai_codex_version}"
+            echo "opencode_ai_version=${opencode_ai_version}"
+            echo "gemini_cli_version=${gemini_cli_version}"
+            echo "pi_coding_agent_version=${pi_coding_agent_version}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update pinned defaults
+        shell: bash
+        env:
+          PAPERCLIP_TAG: ${{ steps.versions.outputs.paperclip_tag }}
+          PAPERCLIP_SHA: ${{ steps.versions.outputs.paperclip_sha }}
+          NODE_DIGEST: ${{ steps.versions.outputs.node_digest }}
+          CLAUDE_CODE_VERSION: ${{ steps.versions.outputs.claude_code_version }}
+          OPENAI_CODEX_VERSION: ${{ steps.versions.outputs.openai_codex_version }}
+          OPENCODE_AI_VERSION: ${{ steps.versions.outputs.opencode_ai_version }}
+          GEMINI_CLI_VERSION: ${{ steps.versions.outputs.gemini_cli_version }}
+          PI_CODING_AGENT_VERSION: ${{ steps.versions.outputs.pi_coding_agent_version }}
+        run: |
+          python <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          def replace(pattern: str, repl: str, text: str, *, file: str) -> str:
+              new, count = re.subn(pattern, repl, text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match for {pattern!r} in {file}, found {count}")
+              return new
+
+          dockerfile = Path("Dockerfile")
+          text = dockerfile.read_text()
+          text = replace(r"^ARG NODE_IMAGE=node:lts-trixie-slim@sha256:[0-9a-f]+$", f"ARG NODE_IMAGE=node:lts-trixie-slim@{os.environ['NODE_DIGEST']}", text, file="Dockerfile")
+          text = replace(r"^# v[^\n]+ release commit\nARG PAPERCLIP_REF=[0-9a-f]+$", f"# {os.environ['PAPERCLIP_TAG']} release commit\nARG PAPERCLIP_REF={os.environ['PAPERCLIP_SHA']}", text, file="Dockerfile")
+          for arg, env_name in [
+              ("CLAUDE_CODE_VERSION", "CLAUDE_CODE_VERSION"),
+              ("OPENAI_CODEX_VERSION", "OPENAI_CODEX_VERSION"),
+              ("OPENCODE_AI_VERSION", "OPENCODE_AI_VERSION"),
+              ("GEMINI_CLI_VERSION", "GEMINI_CLI_VERSION"),
+              ("PI_CODING_AGENT_VERSION", "PI_CODING_AGENT_VERSION"),
+          ]:
+              text = replace(rf"^ARG {arg}=.+$", f"ARG {arg}={os.environ[env_name]}", text, file="Dockerfile")
+          dockerfile.write_text(text)
+
+          readme = Path("README.md")
+          text = readme.read_text()
+          text = replace(r"\| `PAPERCLIP_REF` \| `[^`]+` \| Paperclip commit SHA for release `[^`]+` \|", f"| `PAPERCLIP_REF` | `{os.environ['PAPERCLIP_SHA']}` | Paperclip commit SHA for release `{os.environ['PAPERCLIP_TAG']}` |", text, file="README.md")
+          text = replace(r"\| `NODE_IMAGE` \| pinned `node:lts-trixie-slim` digest \| Base image \|", "| `NODE_IMAGE` | pinned `node:lts-trixie-slim` digest | Base image |", text, file="README.md")
+          text = replace(r"\| `PI_CODING_AGENT_VERSION` \| `[^`]+` \| `@earendil-works/pi-coding-agent` version \|", f"| `PI_CODING_AGENT_VERSION` | `{os.environ['PI_CODING_AGENT_VERSION']}` | `@earendil-works/pi-coding-agent` version |", text, file="README.md")
+          readme.write_text(text)
+          PY
+
+      - name: Validate Dockerfile and Compose config
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx build --check .
+          PAPERCLIP_FQDN=paperclip.example.com \
+          POSTGRES_PASSWORD=dummypassword \
+          BETTER_AUTH_SECRET=dummybetterauthsecret \
+          PAPERCLIP_AGENT_JWT_SECRET=dummyjwtsecret \
+          KIMI_API_KEY=kimi-test \
+          OPENROUTER_API_KEY=openrouter-test \
+          OPENAI_API_KEY=openai-test \
+          docker compose config --quiet
+
+      - name: Open update pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/update-pinned-components
+          delete-branch: true
+          commit-message: "chore: update pinned Paperclip runtime components"
+          title: "chore: update pinned Paperclip runtime components"
+          body: |
+            Automated daily update for pinned deployment components.
+
+            - Paperclip: `${{ steps.versions.outputs.paperclip_tag }}` / `${{ steps.versions.outputs.paperclip_sha }}`
+            - Node base image digest: `${{ steps.versions.outputs.node_digest }}`
+            - Claude Code CLI: `${{ steps.versions.outputs.claude_code_version }}`
+            - OpenAI Codex CLI: `${{ steps.versions.outputs.openai_codex_version }}`
+            - OpenCode AI CLI: `${{ steps.versions.outputs.opencode_ai_version }}`
+            - Gemini CLI: `${{ steps.versions.outputs.gemini_cli_version }}`
+            - Pi coding agent: `${{ steps.versions.outputs.pi_coding_agent_version }}`
+
+            Validation run by this workflow:
+            - `docker buildx build --check .`
+            - `docker compose config --quiet` with representative public deployment and provider env vars.

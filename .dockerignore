@@ -1,0 +1,11 @@
+# Build context is small here because the Dockerfile clones Paperclip from source,
+# but we still ignore local files that should never end up in an image layer.
+.git
+.github
+.env
+.env.*
+!.env.example
+*.md
+!README.md
+docker-compose*.yml
+Dockerfile*

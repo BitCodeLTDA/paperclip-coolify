@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-paperclip}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
@@ -20,6 +21,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -29,23 +31,61 @@ services:
       PAPERCLIP_HOME: "/paperclip"
       HOME: "/paperclip"
       PAPERCLIP_DEPLOYMENT_MODE: ${PAPERCLIP_DEPLOYMENT_MODE:-authenticated}
-      PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE:-private}
-      PAPERCLIP_PUBLIC_URL: ${COOLIFY_URL:?COOLIFY_URL must be set by Coolify}
+      PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE:-public}
+      PAPERCLIP_AUTH_BASE_URL_MODE: ${PAPERCLIP_AUTH_BASE_URL_MODE:-explicit}
+      PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}
+      PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
+      PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES:-${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}
       DATABASE_URL: postgres://${POSTGRES_USER:-paperclip}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-paperclip}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET must be set}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      PAPERCLIP_AGENT_JWT_SECRET: ${PAPERCLIP_AGENT_JWT_SECRET:?PAPERCLIP_AGENT_JWT_SECRET must be set}
+
+      # Provider API keys are intentionally passed through to Paperclip and child
+      # agent processes, including the pi-local adapter running inside this image.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      KIMI_API_KEY: ${KIMI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      FIREWORKS_API_KEY: ${FIREWORKS_API_KEY:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      ZAI_CODING_CN_API_KEY: ${ZAI_CODING_CN_API_KEY:-}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_CN_API_KEY: ${MINIMAX_CN_API_KEY:-}
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
+      AZURE_OPENAI_RESOURCE_NAME: ${AZURE_OPENAI_RESOURCE_NAME:-}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-}
+      AZURE_OPENAI_DEPLOYMENT_NAME_MAP: ${AZURE_OPENAI_DEPLOYMENT_NAME_MAP:-}
+      CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_GATEWAY_ID: ${CLOUDFLARE_GATEWAY_ID:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ENDPOINT_URL_BEDROCK_RUNTIME: ${AWS_ENDPOINT_URL_BEDROCK_RUNTIME:-}
     volumes:
       - paperclip-data:/paperclip
     networks:
       - coolify
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.paperclip.rule=Host(`${COOLIFY_DOMAIN:?COOLIFY_DOMAIN must be set by Coolify}`)"
-      - "traefik.http.routers.paperclip.entrypoints=websecure"
-      - "traefik.http.routers.paperclip.tls.certresolver=letsencrypt"
-      - "traefik.http.services.paperclip.loadbalancer.server.port=3100"
+      - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.rule=Host(`${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}`)"
+      - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.entrypoints=websecure"
+      - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.paperclip-${COOLIFY_RESOURCE_UUID:-local}.loadbalancer.server.port=3100"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3100/api/health"]
       interval: 30s
