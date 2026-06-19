@@ -118,7 +118,7 @@ jobs:
         run: |
           set -euo pipefail
           docker buildx build --check .
-          PAPERCLIP_FQDN=paperclip.example.com \
+          SERVICE_FQDN_PAPERCLIP=paperclip.example.com \
           SERVICE_PASSWORD_64_POSTGRES=dummypassword \
           SERVICE_HEX_64_BETTERAUTH=dummybetterauthsecret \
           SERVICE_HEX_64_AGENTJWT=dummyjwtsecret \

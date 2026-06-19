@@ -34,11 +34,14 @@ services:
       PAPERCLIP_DEPLOYMENT_MODE: ${PAPERCLIP_DEPLOYMENT_MODE:-authenticated}
       PAPERCLIP_DEPLOYMENT_EXPOSURE: ${PAPERCLIP_DEPLOYMENT_EXPOSURE:-public}
       PAPERCLIP_AUTH_BASE_URL_MODE: ${PAPERCLIP_AUTH_BASE_URL_MODE:-explicit}
-      PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}
-      PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
-      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}}
-      PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES:-${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}}
+      # Coolify auto-generates SERVICE_FQDN_PAPERCLIP from the domain assigned to the
+      # paperclip service. PAPERCLIP_FQDN can be set to override it.
+      PAPERCLIP_FQDN: ${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP}}
+      PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}}
+      PAPERCLIP_AUTH_PUBLIC_BASE_URL: ${PAPERCLIP_AUTH_PUBLIC_BASE_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}}}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}}}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-${PAPERCLIP_PUBLIC_URL:-https://${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}}}
+      PAPERCLIP_ALLOWED_HOSTNAMES: ${PAPERCLIP_ALLOWED_HOSTNAMES:-${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}}
       DATABASE_URL: postgres://${POSTGRES_USER:-paperclip}:${SERVICE_PASSWORD_64_POSTGRES}@postgres:5432/${POSTGRES_DB:-paperclip}
       # Coolify auto-generates these secrets via SERVICE_HEX_64_* magic values.
       BETTER_AUTH_SECRET: ${SERVICE_HEX_64_BETTERAUTH}
@@ -84,7 +87,7 @@ services:
       - coolify
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.rule=Host(`${PAPERCLIP_FQDN:?PAPERCLIP_FQDN must be set to your public hostname}`)"
+      - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.rule=Host(`${PAPERCLIP_FQDN:-${SERVICE_FQDN_PAPERCLIP:?PAPERCLIP_FQDN or SERVICE_FQDN_PAPERCLIP must be set to your public hostname}}`)"
       - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.entrypoints=websecure"
       - "traefik.http.routers.paperclip-${COOLIFY_RESOURCE_UUID:-local}.tls.certresolver=letsencrypt"
       - "traefik.http.services.paperclip-${COOLIFY_RESOURCE_UUID:-local}.loadbalancer.server.port=3100"
