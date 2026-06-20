@@ -4,6 +4,7 @@ Self-hosted [Paperclip](https://paperclip.ing) deployment for [Coolify](https://
 
 ## What's included
 
+- Paperclip server image published to `ghcr.io/lukasparke/paperclip-coolify:latest`
 - Paperclip server built from the [paperclipai/paperclip](https://github.com/paperclipai/paperclip) source with the `pi` CLI baked in
 - PostgreSQL 16 sidecar
 - Traefik labels for Coolify reverse proxy + SSL
@@ -17,9 +18,13 @@ Self-hosted [Paperclip](https://paperclip.ing) deployment for [Coolify](https://
 - At least 4 GB RAM / 2 vCPU (8 GB RAM recommended for building Paperclip from source)
 - Coolify v4.0.0-beta.411 or newer if you use Coolify magic values for secrets
 
+## Published image
+
+This repo publishes `ghcr.io/lukasparke/paperclip-coolify:latest` from the Dockerfile on every push to `main`. The image is also tagged with the source commit SHA as `sha-<commit>`.
+
 ## Build source
 
-The Dockerfile clones and builds Paperclip from source rather than using a prebuilt image. Defaults are pinned for repeatable builds and can be overridden with Docker build args.
+The Dockerfile clones and builds Paperclip from source rather than using an upstream prebuilt image. Defaults are pinned for repeatable builds and can be overridden with Docker build args.
 
 | Build arg | Default | Description |
 |---|---|---|
@@ -36,6 +41,7 @@ In Coolify you can set build arguments under **Resource → Configuration → Bu
 
 This repo includes lightweight GitHub automation:
 
+- `.github/workflows/publish-image.yml` publishes `ghcr.io/lukasparke/paperclip-coolify:latest` on pushes to `main` and on manual dispatch.
 - `.github/workflows/update-components.yml` runs daily and on manual dispatch.
 - It checks the latest Paperclip GitHub release, `node:lts-trixie-slim` digest, and bundled CLI npm packages.
 - If anything changed, it updates the pinned defaults, validates the Dockerfile and compose config, and opens a pull request.

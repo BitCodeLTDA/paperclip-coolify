@@ -19,6 +19,7 @@ services:
       start_period: 10s
 
   paperclip:
+    image: ghcr.io/lukasparke/paperclip-coolify:latest
     build:
       context: .
       dockerfile: Dockerfile
