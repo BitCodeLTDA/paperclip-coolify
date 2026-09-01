@@ -5,9 +5,9 @@
 ARG NODE_IMAGE=node:lts-trixie-slim@sha256:45fbb3ca3b6c7e6646cd2889d0ac7bf314bb180036da792221fc2f48fe4d43fb
 ARG PAPERCLIP_REPO=https://github.com/paperclipai/paperclip.git
 # v2026.609.0 release commit
-ARG PAPERCLIP_REF=a0f7d3dabaf5308ade45cae0c64ebd133948dca2
+ARG PAPERCLIP_REF=v2026.824.1
 ARG CLAUDE_CODE_VERSION=2.1.181
-ARG OPENAI_CODEX_VERSION=0.141.0
+ARG OPENAI_CODEX_VERSION=0.152.0
 ARG OPENCODE_AI_VERSION=1.17.8
 ARG GEMINI_CLI_VERSION=0.47.0
 ARG PI_CODING_AGENT_VERSION=0.79.6
@@ -75,6 +75,9 @@ ARG GEMINI_CLI_VERSION
 ARG PI_CODING_AGENT_VERSION
 WORKDIR /app
 COPY --chown=node:node --from=build /app /app
+
+RUN git init /app \
+  && chown -R node:node /app/.git
 
 LABEL org.opencontainers.image.source="$PAPERCLIP_REPO" \
       org.opencontainers.image.revision="$PAPERCLIP_REF" \
